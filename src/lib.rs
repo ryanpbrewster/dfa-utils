@@ -9,6 +9,20 @@ struct State {
     transitions: HashMap<u8, usize>,
 }
 
+type Label = usize;
+struct Partition {
+    //The number of sets in the partition
+    z: usize,
+    // The elements themselves.
+    elements: Vec<usize>,
+    // The start index of the elements of set `i` in `elements`.
+    first: Vec<usize>,
+    // Just past the last index of the elements of set `i` in `elements`.
+    past: Vec<usize>,
+    // The location of element `e` in `elements`.
+    location: Vec<usize>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::{State, DFA};
