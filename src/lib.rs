@@ -3,6 +3,7 @@ use std::hash::Hash;
 
 use table::Table;
 
+mod partition;
 mod table;
 
 #[derive(Debug)]
@@ -18,8 +19,8 @@ where
     E: Eq + Hash + Copy,
 {
     fn prune_unreachable(self) -> DFA<S, E> {
-        let mut outflows = self.transitions.by_a();
-        let mut inflows = self.transitions.by_c();
+        let outflows = self.transitions.by_a();
+        let inflows = self.transitions.by_c();
 
         let mut reachable = HashSet::new();
         let mut queue = VecDeque::new();
