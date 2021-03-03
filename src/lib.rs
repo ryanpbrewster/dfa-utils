@@ -20,7 +20,8 @@ where
     S: Eq + Hash + Copy + Debug,
     E: Eq + Hash + Copy + Debug,
 {
-    pub fn prune_unreachable(self) -> DFA<S, E> {
+    // If the DFA represents the empty language, this will return `None`.
+    pub fn prune_unreachable(self) -> Option<DFA<S, E>> {
         let outflows = self.transitions.by_a();
         let inflows = self.transitions.by_c();
 
@@ -54,9 +55,11 @@ where
         }
 
         let allowed: HashSet<S> = reachable.intersection(&relevant).copied().collect();
-        assert!(allowed.contains(&self.initial_state));
+        if !allowed.contains(&self.initial_state) {
+            return None;
+        }
 
-        DFA {
+        Some(DFA {
             initial_state: self.initial_state,
             final_states: self.final_states.intersection(&allowed).copied().collect(),
             transitions: self
@@ -64,7 +67,7 @@ where
                 .into_iter()
                 .filter(|(src, _, dst)| allowed.contains(src) && allowed.contains(dst))
                 .collect(),
-        }
+        })
     }
 
     pub fn minimize(&self) -> DFA<S, E> {
@@ -118,8 +121,15 @@ where
         let mut canonical_tuples = Vec::new();
         for i in 0..blocks.len() {
             let src = blocks.canonical(i);
-            for &(label, dst) in &by_src[&src] {
-                canonical_tuples.push((src, label, blocks.canonical(blocks.owner(dst))));
+            println!(
+                "looking for canonical state for block {}: {:?}",
+                i,
+                blocks.owned(i)
+            );
+            if let Some(outgoing) = by_src.get(&src) {
+                for &(label, dst) in outgoing {
+                    canonical_tuples.push((src, label, blocks.canonical(blocks.owner(dst))));
+                }
             }
         }
         DFA {
@@ -161,7 +171,7 @@ mod test {
         };
         assert_eq!(input.transitions.len(), 12);
         assert_eq!(input.transitions.by_a().len(), 6);
-        let pruned = input.prune_unreachable();
+        let pruned = input.prune_unreachable().unwrap();
         // We pruned out 5 transitions and 1 state.
         assert_eq!(pruned.transitions.len(), 7);
         assert_eq!(pruned.transitions.by_a().len(), 5);
@@ -190,7 +200,7 @@ mod test {
         };
         assert_eq!(input.transitions.len(), 12);
         assert_eq!(input.transitions.by_a().len(), 6);
-        let pruned = input.prune_unreachable();
+        let pruned = input.prune_unreachable().unwrap();
         let minified = pruned.minimize();
         assert_eq!(minified.transitions.len(), 3);
         assert_eq!(minified.transitions.by_a().len(), 2);
@@ -217,12 +227,40 @@ mod test {
         };
         assert_eq!(input.transitions.len(), 10);
         assert_eq!(input.transitions.by_a().len(), 5);
-        let pruned = input.prune_unreachable();
-        println!("{:?}", pruned);
+        let pruned = input.prune_unreachable().unwrap();
         let minified = pruned.minimize();
-        println!("{:?}", minified);
         assert_eq!(minified.transitions.len(), 6);
         assert_eq!(minified.transitions.by_a().len(), 3);
         assert_eq!(minified.final_states.len(), 1);
+    }
+
+    #[test]
+    fn prune_empty_language() {
+        let input: DFA<u32, u8> = DFA {
+            initial_state: 0,
+            final_states: HashSet::new(),
+            transitions: Table::from(vec![]),
+        };
+        let pruned = input.prune_unreachable();
+        assert!(pruned.is_none());
+    }
+
+    #[test]
+    fn minimize_dfa_with_all_states_accepting() {
+        // This is an already-minimal DFA that accepts 0*10*
+        // Every state is an accepting state.
+        let transitions: Vec<(u32, u8, u32)> = vec![(0, 0, 0), (0, 1, 1), (1, 0, 1)];
+        let input: DFA<u32, u8> = DFA {
+            initial_state: 0,
+            final_states: vec![0, 1].into_iter().collect(),
+            transitions: Table::from(transitions),
+        };
+        assert_eq!(input.transitions.len(), 3);
+        assert_eq!(input.transitions.by_a().len(), 2);
+        let pruned = input.prune_unreachable().unwrap();
+        let minified = pruned.minimize();
+        assert_eq!(minified.transitions.len(), 3);
+        assert_eq!(minified.transitions.by_a().len(), 2);
+        assert_eq!(minified.final_states.len(), 2);
     }
 }
