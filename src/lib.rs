@@ -91,6 +91,7 @@ where
             }
             cords.split();
         }
+        println!("initial cord partition has {} sets", cords.len());
 
         // Repeatedly refine partitions.
         let mut b = 1;
@@ -103,8 +104,10 @@ where
             c += 1;
             while b < blocks.len() {
                 for &dst in blocks.owned(b) {
-                    for &(src, label) in &by_dst[&dst] {
-                        cords.mark((src, label, dst));
+                    if let Some(edges) = by_dst.get(&dst) {
+                        for &(src, label) in edges {
+                            cords.mark((src, label, dst));
+                        }
                     }
                 }
                 cords.split();
@@ -112,6 +115,13 @@ where
             }
         }
 
+        let mut canonical_tuples = Vec::new();
+        for i in 0..blocks.len() {
+            let src = blocks.canonical(i);
+            for &(label, dst) in &by_src[&src] {
+                canonical_tuples.push((src, label, blocks.canonical(blocks.owner(dst))));
+            }
+        }
         DFA {
             initial_state: blocks.canonical(blocks.owner(self.initial_state)),
             final_states: self
@@ -119,16 +129,7 @@ where
                 .iter()
                 .map(|&q| blocks.canonical(blocks.owner(q)))
                 .collect(),
-            transitions: (0..cords.len())
-                .map(|i| {
-                    let (src, label, dst) = cords.canonical(i);
-                    (
-                        blocks.canonical(blocks.owner(src)),
-                        label,
-                        blocks.canonical(blocks.owner(dst)),
-                    )
-                })
-                .collect(),
+            transitions: Table::from(canonical_tuples),
         }
     }
 }
@@ -193,5 +194,35 @@ mod test {
         let minified = pruned.minimize();
         assert_eq!(minified.transitions.len(), 3);
         assert_eq!(minified.transitions.by_a().len(), 2);
+    }
+
+    #[test]
+    fn minimize_example1() {
+        let transitions: Vec<(u32, u8, u32)> = vec![
+            (0, 0, 1),
+            (1, 0, 2),
+            (1, 1, 2),
+            (2, 0, 2),
+            (2, 1, 2),
+            (0, 1, 3),
+            (3, 0, 4),
+            (3, 1, 4),
+            (4, 0, 4),
+            (4, 1, 4),
+        ];
+        let input: DFA<u32, u8> = DFA {
+            initial_state: 0,
+            final_states: vec![2, 4].into_iter().collect(),
+            transitions: Table::from(transitions),
+        };
+        assert_eq!(input.transitions.len(), 10);
+        assert_eq!(input.transitions.by_a().len(), 5);
+        let pruned = input.prune_unreachable();
+        println!("{:?}", pruned);
+        let minified = pruned.minimize();
+        println!("{:?}", minified);
+        assert_eq!(minified.transitions.len(), 6);
+        assert_eq!(minified.transitions.by_a().len(), 3);
+        assert_eq!(minified.final_states.len(), 1);
     }
 }

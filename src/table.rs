@@ -18,6 +18,15 @@ impl<A, B, C> IntoIterator for Table<A, B, C> {
         self.tuples.into_iter()
     }
 }
+impl<'a, A, B, C> IntoIterator for &'a Table<A, B, C> {
+    type Item = &'a (A, B, C);
+
+    type IntoIter = std::slice::Iter<'a, (A, B, C)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.tuples.iter()
+    }
+}
 impl<A, B, C> FromIterator<(A, B, C)> for Table<A, B, C> {
     fn from_iter<T: IntoIterator<Item = (A, B, C)>>(iter: T) -> Self {
         Table {
