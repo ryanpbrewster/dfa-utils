@@ -1,9 +1,9 @@
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::{collections::HashMap, ops::Range};
-use std::{hash::Hash, mem::swap};
 
 type SetId = usize;
-struct Partition<T> {
+pub struct Partition<T> {
     elements: Vec<T>,
     locations: HashMap<T, usize>,
     owners: HashMap<T, SetId>,
@@ -17,7 +17,7 @@ impl<T> Partition<T>
 where
     T: Eq + Hash + Copy + Debug,
 {
-    fn new(elements: Vec<T>) -> Partition<T> {
+    pub fn new(elements: Vec<T>) -> Partition<T> {
         let locations = elements
             .iter()
             .enumerate()
@@ -36,15 +36,20 @@ where
             touched,
         }
     }
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.spans.len()
     }
-    fn owned(&self, set_id: SetId) -> &[T] {
+    pub fn owned(&self, set_id: SetId) -> &[T] {
         let span = self.spans[set_id].clone();
         &self.elements[span]
     }
-    fn mark(&mut self, item: T) {
-        // Swap
+    pub fn owner(&self, item: T) -> SetId {
+        self.owners[&item]
+    }
+    pub fn canonical(&self, set_id: SetId) -> T {
+        self.elements[self.spans[set_id].start]
+    }
+    pub fn mark(&mut self, item: T) {
         let owner = self.owners[&item];
         let i = self.locations[&item];
         let j = self.spans[owner].start + self.marked[owner];
@@ -62,7 +67,7 @@ where
         }
         self.marked[owner] += 1;
     }
-    fn split(&mut self) {
+    pub fn split(&mut self) {
         while let Some(s) = self.touched.pop() {
             let Range { start, end } = self.spans[s];
             let mid = start + self.marked[s];

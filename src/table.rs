@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::Hash, iter::FromIterator};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Table<A, B, C> {
     tuples: Vec<(A, B, C)>,
 }
