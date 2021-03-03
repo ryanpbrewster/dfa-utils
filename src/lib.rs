@@ -91,7 +91,11 @@ mod test {
             final_states: vec![2, 3, 4].into_iter().collect(),
             transitions: Table::from(transitions),
         };
-        println!("{:?}", input);
-        println!("{:?}", input.prune_unreachable());
+        assert_eq!(input.transitions.len(), 12);
+        assert_eq!(input.transitions.by_a().len(), 6);
+        let pruned = input.prune_unreachable();
+        // We pruned out 5 transitions and 1 state.
+        assert_eq!(pruned.transitions.len(), 7);
+        assert_eq!(pruned.transitions.by_a().len(), 5);
     }
 }

@@ -32,6 +32,9 @@ where
     B: Eq + Hash + Copy,
     C: Eq + Hash + Copy,
 {
+    pub fn len(&self) -> usize {
+        self.tuples.len()
+    }
     pub fn by_a(&self) -> HashMap<A, Vec<(B, C)>> {
         group_by_to(&self.tuples, |&(a, _, _)| a, |&(_, b, c)| (b, c))
     }
